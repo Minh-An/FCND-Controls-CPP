@@ -67,16 +67,17 @@ VehicleCommand QuadControl::GenerateMotorCommands(float collThrustCmd, V3F momen
   // HINTS: 
   // - you can access parts of momentCmd via e.g. momentCmd.x
   // You'll need the arm length parameter L, and the drag/thrust ratio kappa
-
-  ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
-
-  cmd.desiredThrustsN[0] = mass * 9.81f / 4.f; // front left
-  cmd.desiredThrustsN[1] = mass * 9.81f / 4.f; // front right
-  cmd.desiredThrustsN[2] = mass * 9.81f / 4.f; // rear left
-  cmd.desiredThrustsN[3] = mass * 9.81f / 4.f; // rear right
-
-  /////////////////////////////// END STUDENT CODE ////////////////////////////
-
+  
+  float l = L / (2*sqrt(2));
+  float a = momentCmd[0] / l;
+  float b = momentCmd[1] / l;
+  float c = -momentCmd[2] / kappa;
+  
+  cmd.desiredThrustsN[0] = (collThrustCmd + a + b + c)/4.0;
+  cmd.desiredThrustsN[1] = (collThrustCmd - a + b - c)/4.0;
+  cmd.desiredThrustsN[2] = (collThrustCmd + a - b - c)/4.0;
+  cmd.desiredThrustsN[3] = (collThrustCmd - a - b + c)/4.0;
+  
   return cmd;
 }
 
@@ -94,13 +95,8 @@ V3F QuadControl::BodyRateControl(V3F pqrCmd, V3F pqr)
   //  - you'll need parameters for moments of inertia Ixx, Iyy, Izz
   //  - you'll also need the gain parameter kpPQR (it's a V3F)
 
-  V3F momentCmd;
-
-  ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
-
-  
-
-  /////////////////////////////// END STUDENT CODE ////////////////////////////
+  V3F moment_intertia(Ixx, Iyy, Izz);
+  V3F momentCmd = moment_intertia * kpPQR * (pqrCmd - pqr);
 
   return momentCmd;
 }
@@ -123,16 +119,21 @@ V3F QuadControl::RollPitchControl(V3F accelCmd, Quaternion<float> attitude, floa
   //  - we already provide rotation matrix R: to get element R[1,2] (python) use R(1,2) (C++)
   //  - you'll need the roll/pitch gain kpBank
   //  - collThrustCmd is a force in Newtons! You'll likely want to convert it to acceleration first
-
+  
   V3F pqrCmd;
   Mat3x3F R = attitude.RotationMatrix_IwrtB();
-
-  ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
-
-
-
-  /////////////////////////////// END STUDENT CODE ////////////////////////////
-
+  
+  float c = collThrustCmd / mass;
+  float b_x_c = -CONSTRAIN(accelCmd[0] / c, -maxTiltAngle, maxTiltAngle);
+  float b_y_c = -CONSTRAIN(accelCmd[1] / c, -maxTiltAngle, maxTiltAngle);
+  float b_x_a = R(0,2);
+  float b_y_a = R(1,2);
+  float b_dot_x_c = kpBank * (b_x_c - b_x_a);
+  float b_dot_y_c = kpBank * (b_y_c - b_y_a);
+  
+  pqrCmd[0] = (R(1,0) * b_dot_x_c - R(0, 0) * b_dot_y_c)/R(2,2);
+  pqrCmd[1] = (R(1,1) * b_dot_x_c - R(0, 1) * b_dot_y_c)/R(2,2);
+  
   return pqrCmd;
 }
 
@@ -160,9 +161,13 @@ float QuadControl::AltitudeControl(float posZCmd, float velZCmd, float posZ, flo
   float thrust = 0;
 
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
+  
+  float g = 9.81;
 
-
-
+  float z_dot_t = CONSTRAIN(kpPosZ * (posZCmd - posZ) + velZCmd, -maxAscentRate, maxDescentRate);
+  float z_dot_dot = kpVelZ * (z_dot_t - velZ) + accelZCmd;
+  thrust = z_dot_dot = -(z_dot_dot + g) / R(2,2);
+  
   /////////////////////////////// END STUDENT CODE ////////////////////////////
   
   return thrust;
