@@ -78,6 +78,8 @@ VehicleCommand QuadControl::GenerateMotorCommands(float collThrustCmd, V3F momen
   cmd.desiredThrustsN[2] = (collThrustCmd + a - b - c)/4.0;
   cmd.desiredThrustsN[3] = (collThrustCmd - a - b + c)/4.0;
   
+  //printf("%f\n", cmd.desiredThrustsN[0]);
+  
   return cmd;
 }
 
@@ -121,6 +123,7 @@ V3F QuadControl::RollPitchControl(V3F accelCmd, Quaternion<float> attitude, floa
   //  - collThrustCmd is a force in Newtons! You'll likely want to convert it to acceleration first
   
   V3F pqrCmd;
+  
   Mat3x3F R = attitude.RotationMatrix_IwrtB();
   
   float c = collThrustCmd / mass;
@@ -135,6 +138,8 @@ V3F QuadControl::RollPitchControl(V3F accelCmd, Quaternion<float> attitude, floa
   pqrCmd[1] = (R(1,1) * b_dot_x_c - R(0, 1) * b_dot_y_c)/R(2,2);
   
   return pqrCmd;
+   
+  
 }
 
 float QuadControl::AltitudeControl(float posZCmd, float velZCmd, float posZ, float velZ, Quaternion<float> attitude, float accelZCmd, float dt)
@@ -161,12 +166,12 @@ float QuadControl::AltitudeControl(float posZCmd, float velZCmd, float posZ, flo
   float thrust = 0;
 
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
-  
   float g = 9.81;
+  
 
   float z_dot_t = CONSTRAIN(kpPosZ * (posZCmd - posZ) + velZCmd, -maxAscentRate, maxDescentRate);
   float z_dot_dot = kpVelZ * (z_dot_t - velZ) + accelZCmd;
-  thrust = z_dot_dot = -(z_dot_dot + g) / R(2,2);
+  thrust = -(z_dot_dot -g) * mass / R(2,2);
   
   /////////////////////////////// END STUDENT CODE ////////////////////////////
   
@@ -203,9 +208,18 @@ V3F QuadControl::LateralPositionControl(V3F posCmd, V3F velCmd, V3F pos, V3F vel
   V3F accelCmd = accelCmdFF;
 
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
-
   
+  float x_dot_t = CONSTRAIN(kpPosXY * (posCmd[0] - pos[0]) + velCmd[0], -maxSpeedXY, maxSpeedXY);
+  float y_dot_t = CONSTRAIN(kpPosXY * (posCmd[1] - pos[1]) + velCmd[1], -maxSpeedXY, maxSpeedXY);
+  
+  //printf("%f, %f, %f, %f, %f, %f\n", posCmd[0], pos[0], velCmd[0], posCmd[1], pos[1], velCmd[1]);
+  
+  V3F vel_t = V3F(x_dot_t, y_dot_t, 0);
 
+  accelCmd += kpVelXY * (vel_t - vel);
+  
+  //printf("%f, %f, %f, %f, %f, %f\n", x_dot_t, y_dot_t, vel[0], vel[1], accelCmd[0], accelCmd[1]);
+   
   /////////////////////////////// END STUDENT CODE ////////////////////////////
 
   return accelCmd;
@@ -227,7 +241,8 @@ float QuadControl::YawControl(float yawCmd, float yaw)
   float yawRateCmd=0;
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
 
-
+  yawRateCmd = kpPQR[2] * (yawCmd - yaw);
+  
   /////////////////////////////// END STUDENT CODE ////////////////////////////
 
   return yawRateCmd;
