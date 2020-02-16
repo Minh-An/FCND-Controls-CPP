@@ -77,9 +77,7 @@ VehicleCommand QuadControl::GenerateMotorCommands(float collThrustCmd, V3F momen
   cmd.desiredThrustsN[1] = (collThrustCmd - a + b - c)/4.0;
   cmd.desiredThrustsN[2] = (collThrustCmd + a - b - c)/4.0;
   cmd.desiredThrustsN[3] = (collThrustCmd - a - b + c)/4.0;
-  
-  //printf("%f\n", cmd.desiredThrustsN[0]);
-  
+    
   return cmd;
 }
 
@@ -168,9 +166,10 @@ float QuadControl::AltitudeControl(float posZCmd, float velZCmd, float posZ, flo
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
   float g = 9.81;
   
-
-  float z_dot_t = CONSTRAIN(kpPosZ * (posZCmd - posZ) + velZCmd, -maxAscentRate, maxDescentRate);
-  float z_dot_dot = kpVelZ * (z_dot_t - velZ) + accelZCmd;
+  float e = (posZCmd - posZ);
+  float z_dot_t = CONSTRAIN(kpPosZ * e + velZCmd, -maxAscentRate, maxDescentRate);
+  integratedAltitudeError += e * dt;
+  float z_dot_dot = kpVelZ * (z_dot_t - velZ) + KiPosZ*integratedAltitudeError + accelZCmd;
   thrust = -(z_dot_dot -g) * mass / R(2,2);
   
   /////////////////////////////// END STUDENT CODE ////////////////////////////
@@ -241,7 +240,7 @@ float QuadControl::YawControl(float yawCmd, float yaw)
   float yawRateCmd=0;
   ////////////////////////////// BEGIN STUDENT CODE ///////////////////////////
 
-  yawRateCmd = kpPQR[2] * (yawCmd - yaw);
+  yawRateCmd = kpYaw * (yawCmd - yaw);
   
   /////////////////////////////// END STUDENT CODE ////////////////////////////
 
