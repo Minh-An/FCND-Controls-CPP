@@ -68,15 +68,15 @@ VehicleCommand QuadControl::GenerateMotorCommands(float collThrustCmd, V3F momen
   // - you can access parts of momentCmd via e.g. momentCmd.x
   // You'll need the arm length parameter L, and the drag/thrust ratio kappa
   
-  float l = L / (2*sqrt(2));
-  float a = momentCmd[0] / l;
-  float b = momentCmd[1] / l;
-  float c = -momentCmd[2] / kappa;
+  float l = L / (sqrt(2));
+  float a = momentCmd.x / l;
+  float b = momentCmd.y / l;
+  float c = -momentCmd.z / kappa;
   
-  cmd.desiredThrustsN[0] = (collThrustCmd + a + b + c)/4.0;
-  cmd.desiredThrustsN[1] = (collThrustCmd - a + b - c)/4.0;
-  cmd.desiredThrustsN[2] = (collThrustCmd + a - b - c)/4.0;
-  cmd.desiredThrustsN[3] = (collThrustCmd - a - b + c)/4.0;
+  cmd.desiredThrustsN[0] = CONSTRAIN((collThrustCmd + a + b + c)/4.0, minMotorThrust, maxMotorThrust);
+  cmd.desiredThrustsN[1] = CONSTRAIN((collThrustCmd - a + b - c)/4.0, minMotorThrust, maxMotorThrust);
+  cmd.desiredThrustsN[2] = CONSTRAIN((collThrustCmd + a - b - c)/4.0, minMotorThrust, maxMotorThrust);
+  cmd.desiredThrustsN[3] = CONSTRAIN((collThrustCmd - a - b + c)/4.0, minMotorThrust, maxMotorThrust);
     
   return cmd;
 }
@@ -124,9 +124,9 @@ V3F QuadControl::RollPitchControl(V3F accelCmd, Quaternion<float> attitude, floa
   
   Mat3x3F R = attitude.RotationMatrix_IwrtB();
   
-  float c = collThrustCmd / mass;
-  float b_x_c = -CONSTRAIN(accelCmd[0] / c, -maxTiltAngle, maxTiltAngle);
-  float b_y_c = -CONSTRAIN(accelCmd[1] / c, -maxTiltAngle, maxTiltAngle);
+  float c = -collThrustCmd / mass;
+  float b_x_c = CONSTRAIN(accelCmd[0] / c, -maxTiltAngle, maxTiltAngle);
+  float b_y_c = CONSTRAIN(accelCmd[1] / c, -maxTiltAngle, maxTiltAngle);
   float b_x_a = R(0,2);
   float b_y_a = R(1,2);
   float b_dot_x_c = kpBank * (b_x_c - b_x_a);
@@ -216,6 +216,8 @@ V3F QuadControl::LateralPositionControl(V3F posCmd, V3F velCmd, V3F pos, V3F vel
   V3F vel_t = V3F(x_dot_t, y_dot_t, 0);
 
   accelCmd += kpVelXY * (vel_t - vel);
+  accelCmd[0] = CONSTRAIN(accelCmd[0], -maxAccelXY, maxAccelXY);
+  accelCmd[1] = CONSTRAIN(accelCmd[1], -maxAccelXY, maxAccelXY);
   
   //printf("%f, %f, %f, %f, %f, %f\n", x_dot_t, y_dot_t, vel[0], vel[1], accelCmd[0], accelCmd[1]);
    
